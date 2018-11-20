@@ -1,20 +1,13 @@
 import time, os
 from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
 from sys import platform as _platform
 import getpass
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.common.by import By
 
-MAX_SUBS = 1000000
-MAX_CF_CONTEST_ID = 4444
-
 SUBMISSION_URL = 'http://lightoj.com/volume_usersubmissions.php'
 CODE_URL = "http://lightoj.com/volume_showcode.php?sub_id={submissionId}"
-
-EXT = {'C++': 'cpp', 'C': 'c', 'Java': 'java', 'Python': 'py', 'Delphi': 'dpr', 'FPC': 'pas', 'C#': 'cs'}
-EXT_keys = EXT.keys()
 
 replacer = {'&quot;': '\"', '&gt;': '>', '&lt;': '<', '&amp;': '&', "&apos;": "'"}
 keys = replacer.keys()
@@ -22,7 +15,7 @@ keys = replacer.keys()
 waitTime = 2
 
 
-def GetPathOfChromeDriver():
+def get_path_of_chrome_driver():
     path = os.path.join(os.getcwd(), "chromedriver")
     if _platform == "linux" or _platform == "linux2":
         # linux
@@ -36,7 +29,7 @@ def GetPathOfChromeDriver():
     return path
 
 
-driver = webdriver.Chrome(GetPathOfChromeDriver())
+driver = webdriver.Chrome(get_path_of_chrome_driver())
 
 
 def get_ext(comp_lang):
@@ -61,7 +54,6 @@ def parse(source_code):
 
 
 def light_oj_log_in(user, passwd):
-    login_site = "http://lightoj.com/login_main.php"
     login_site = SUBMISSION_URL
 
     for i in range(1):
@@ -72,7 +64,6 @@ def light_oj_log_in(user, passwd):
 
         username.send_keys(user)
         password.send_keys(passwd)
-        # time.sleep(10)
 
         driver.find_element_by_xpath("/html/body/div[2]/form/input").click()
 
@@ -83,7 +74,7 @@ def light_oj_log_in(user, passwd):
             exit(0)
 
 
-def FileNameParse(file):
+def file_name_parse(file):
     avoid = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
     ret = ""
     for ch in file:
@@ -92,18 +83,17 @@ def FileNameParse(file):
     return ret
 
 
-def GetDownloadedFile(handle):
+def get_downloaded_file(handle):
     path = os.path.join(handle, 'downloaded')
     if os.path.exists(path) == False:
         return []
     file = open(str(path), 'r')
     downloaded = file.readlines()
-    downloaded = map(lambda s: s.strip(), downloaded)
-    print("Existing: ", downloaded)
+    downloaded = list(map(lambda s: s.strip(), downloaded))
     return downloaded
 
 
-def SetDownloadedFile(handle, st):
+def set_downloaded_file(handle, st):
     path = os.path.join(handle, 'downloaded')
     file = open(str(path), 'a')
     file.write(st + "\n")
@@ -119,6 +109,9 @@ def main():
     start_time = time.time()
 
     light_oj_log_in(handle, passwd)
+
+    if not os.path.exists(handle):
+        os.makedirs(handle)
 
     time.sleep(waitTime)
     passwordBox = driver.find_element_by_xpath('//*[@id="mytable2"]/tbody/tr[3]/td/input')
@@ -136,10 +129,7 @@ def main():
     file_names = []
     ext_types = []
 
-    if not os.path.exists(handle):
-        os.makedirs(handle)
-
-    already_downlaod = GetDownloadedFile(handle)
+    already_downloaded = get_downloaded_file(handle)
     downloaded = ""
 
     for submission in submissions:
@@ -148,18 +138,19 @@ def main():
         tds = submission.find_elements_by_tag_name('td')
 
         if tds[4].text == "-" or tds[5].find_element_by_tag_name('div').text != "Accepted" \
-                              or submission_id in already_downlaod:
+                              or submission_id in already_downloaded:
             continue
 
         title = tds[1].find_element_by_tag_name('a').text
         ext = get_ext(tds[2].text)
-        file = handle + "/" + title + "_" + submission_id + "." + ext
+        file = handle + "/" + file_name_parse(title) + " - " + submission_id + "." + ext
 
         submissions_ids.append(submission_id)
         file_names.append(file)
         ext_types.append(ext)
         print(submission_id)
 
+    alreadyDone = 0
     for index, submission_id in enumerate(submissions_ids):
         driver.get(CODE_URL.format(submissionId=submission_id))
         WebDriverWait(driver, 30).until(expected_conditions.element_to_be_clickable((By.CLASS_NAME, ext_types[index])))
@@ -168,6 +159,10 @@ def main():
         codes = elem.text
         # print(codes)
         fileName = file_names[index]
+
+        alreadyDone += 1
+        completed = float(alreadyDone * 100) / float(len(submissions_ids))
+        print("Completed: {0:.2f}%".format(completed))
 
         downloaded += submission_id
         downloaded += "\n"
@@ -189,10 +184,10 @@ def main():
 
         time.sleep(2)
 
-    SetDownloadedFile(handle, downloaded)
+    set_downloaded_file(handle, downloaded)
     driver.quit()
     end_time = time.time()
-    print("\n\nSuccessfully Completed 100%")
+    print("\nSuccessfully Completed 100%")
     print('Execution time %d seconds' % int(end_time - start_time))
 
 
