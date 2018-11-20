@@ -17,7 +17,14 @@ Then go the folder from command line
 sudo pip install -r requirements.txt
 ```
 
-It will install all of the library needed  
+It will install all of the library needed.  
+Then run this command to give permission to chrome driver (Linux & Mac only)  
+
+```
+sudo chmod 777 chromedriver_linux [for Linux]
+sudo chmod 777 chromedriver_mac [for Mac]
+```
+Then,  
 
 ```
 1. Just run "python lightoj-downloader.py" file on your terminal
